@@ -37,13 +37,18 @@ rarity_base_rates = {
 # Shop
 # -----------------------------
 shop_items = {
+    # Cần câu
     "🎣 Cần tre": {"price": 0, "luck": 0, "durability": 50},
     "🎣 Cần sắt": {"price": 10000, "luck": 5, "durability": 100},
-    "🎣 Cần vàng": {"price": 50000, "luck": 15, "durability": 200},
-    "🎣 Cần kim cương": {"price": 200000, "luck": 30, "durability": 500},
+    "🎣 Cần vàng": {"price": 500000, "luck": 15, "durability": 200},
+    "🎣 Cần kim cương": {"price": 2000000, "luck": 30, "durability": 500},
+    "🎣 Cần newbie": {"price": 2000, "luck": 2, "durability": 60},  # dành cho newbie farm
+
+    # Mồi
     "🪱 Mồi thường": {"price": 1000, "luck": 2, "durability": 20},
     "🪱 Mồi đặc biệt": {"price": 10000, "luck": 10, "durability": 50},
-    "🪱 Mồi siêu cấp": {"price": 50000, "luck": 25, "durability": 100},
+    "🪱 Giun đất": {"price": 500, "luck": 3, "durability": 35},   # thêm cho newbie
+    "🪱 Tôm nhỏ": {"price": 2000, "luck": 4, "durability": 40},
 }
 
 # -----------------------------
