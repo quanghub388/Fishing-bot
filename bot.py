@@ -1,95 +1,56 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import random
 import os
+from flask import Flask
+from threading import Thread
 
+# -----------------------------
+# Bot setup
+# -----------------------------
 intents = discord.Intents.default()
+intents.message_content = True
 bot = commands.Bot(command_prefix=":", intents=intents)
 
 # -----------------------------
-# Cá theo độ hiếm
+# Fish, rarity, shop
 # -----------------------------
 fish_data = {
-    "Common": {
-        "🐟 Cá chép": 6000,
-        "🐠 Cá rô phi": 4000,
-        "🐡 Cá trê": 5000,
-        "🐠 Cá basa": 5500,
-    },
-    "Uncommon": {
-        "🐟 Cá lóc": 7000,
-        "🐠 Cá chim trắng": 8000,
-        "🐟 Cá mè": 6000,
-        "🦐 Tôm": 25000,
-    },
-    "Rare": {
-        "🐟 Cá hồi": 35000,
-        "🦑 Mực": 20000,
-        "🐟 Cá bống tượng": 18000,
-    },
-    "Epic": {
-        "🐟 Cá tra dầu": 40000,
-        "🐍 Cá chình": 50000,
-        "🐠 Cá dìa": 22000,
-        "🦪 Bào ngư": 60000,
-    },
-    "Legendary": {
-        "🐟 Cá ngừ đại dương": 70000,
-        "🐋 Cá nhám voi": 100000,
-        "🐟 Cá nhụ": 45000,
-        "🦪 Sò điệp lớn": 55000,
-    },
-    "Mythic": {
-        "🦈 Cá mập": 150000,
-        "🐢 Rùa Hoàn Kiếm": 500000,
-        "💎 Ngọc trai quý": 300000,
-    }
+    "Common": {"🐟 Cá chép": 6000, "🐠 Cá rô phi": 4000, "🐡 Cá trê": 5000, "🐠 Cá basa": 5500},
+    "Uncommon": {"🐟 Cá lóc": 7000, "🐠 Cá chim trắng": 8000, "🐟 Cá mè": 6000, "🦐 Tôm": 25000},
+    "Rare": {"🐟 Cá hồi": 35000, "🦑 Mực": 20000, "🐟 Cá bống tượng": 18000},
+    "Epic": {"🐟 Cá tra dầu": 40000, "🐍 Cá chình": 50000, "🐠 Cá dìa": 22000, "🦪 Bào ngư": 60000},
+    "Legendary": {"🐟 Cá ngừ đại dương": 70000, "🐋 Cá nhám voi": 100000, "🐟 Cá nhụ": 45000, "🦪 Sò điệp lớn": 55000},
+    "Mythic": {"🦈 Cá mập": 150000, "🐢 Rùa Hoàn Kiếm": 500000, "💎 Ngọc trai quý": 300000}
 }
 
-rarity_base_rates = {
-    "Common": 60,
-    "Uncommon": 20,
-    "Rare": 10,
-    "Epic": 5,
-    "Legendary": 3,
-    "Mythic": 2
-}
+rarity_base_rates = {"Common":60,"Uncommon":20,"Rare":10,"Epic":5,"Legendary":3,"Mythic":2}
 
-# -----------------------------
-# Shop items
-# -----------------------------
 shop_items = {
-    "🎣 Cần tre": {"price": 0, "luck": 0, "durability": 50},
-    "🎣 Cần sắt": {"price": 1000, "luck": 5, "durability": 100},
-    "🎣 Cần vàng": {"price": 5000, "luck": 15, "durability": 200},
-    "🎣 Cần kim cương": {"price": 20000, "luck": 30, "durability": 500},
-    "🪱 Mồi thường": {"price": 100, "luck": 2, "durability": 20},
-    "🪱 Mồi đặc biệt": {"price": 1000, "luck": 10, "durability": 50},
+    "🎣 Cần tre":{"price":0,"luck":0,"durability":50},
+    "🎣 Cần sắt":{"price":10000,"luck":5,"durability":100},
+    "🎣 Cần vàng":{"price":50000,"luck":15,"durability":200},
+    "🎣 Cần kim cương":{"price":200000,"luck":30,"durability":500},
+    "🪱 Mồi thường":{"price":100,"luck":2,"durability":20},
+    "🪱 Mồi đặc biệt":{"price":1000,"luck":10,"durability":50},
 }
 
 # -----------------------------
-# Dữ liệu người chơi
+# Player data
 # -----------------------------
-inventories = {}   # {user_id: [(fish, weight, rarity), ...]}
-balances = {}      # {user_id: money}
-gears = {}         # {user_id: {"rod": {...}, "bait": {...}, "rod_dur": x, "bait_dur": y}}
-fish_log = {}      # {user_id: {fish_name: {"rarity": str, "max_weight": float}}}
+inventories = {}
+balances = {}
+gears = {}
+fish_log = {}
+levels = {}   # user_id: {"xp":x,"level":y}
 
 # -----------------------------
-# Random trọng lượng
+# Helpers
 # -----------------------------
 def random_weight(rarity):
-    if rarity == "Common": return round(random.uniform(0.2, 3), 2)
-    if rarity == "Uncommon": return round(random.uniform(0.5, 4), 2)
-    if rarity == "Rare": return round(random.uniform(1, 6), 2)
-    if rarity == "Epic": return round(random.uniform(2, 10), 2)
-    if rarity == "Legendary": return round(random.uniform(5, 50), 2)
-    if rarity == "Mythic": return round(random.uniform(10, 200), 2)
-    return 1.0
+    ranges = {"Common":(0.2,3),"Uncommon":(0.5,4),"Rare":(1,6),"Epic":(2,10),"Legendary":(5,50),"Mythic":(10,200)}
+    return round(random.uniform(*ranges[rarity]),2)
 
-# -----------------------------
-# Chọn cá theo rarity
-# -----------------------------
 def get_random_fish(user):
     rates = rarity_base_rates.copy()
     luck_bonus = 0
@@ -98,11 +59,13 @@ def get_random_fish(user):
         bait = gears[user].get("bait")
         if rod: luck_bonus += rod["luck"]
         if bait: luck_bonus += bait["luck"]
+
     rates["Rare"] += luck_bonus
     rates["Epic"] += luck_bonus//2
     rates["Legendary"] += luck_bonus//3
     rates["Mythic"] += luck_bonus//5
     rates["Common"] = max(5, rates["Common"] - luck_bonus)
+
     rarities, probs = zip(*rates.items())
     rarity = random.choices(rarities, weights=probs, k=1)[0]
     fish = random.choice(list(fish_data[rarity].keys()))
@@ -110,10 +73,19 @@ def get_random_fish(user):
     weight = random_weight(rarity)
     return fish, weight, rarity, price
 
+def add_xp(user, amount):
+    if user not in levels:
+        levels[user] = {"xp":0,"level":1}
+    levels[user]["xp"] += amount
+    # Level up every 100 XP
+    while levels[user]["xp"] >= levels[user]["level"]*100:
+        levels[user]["xp"] -= levels[user]["level"]*100
+        levels[user]["level"] += 1
+
 # -----------------------------
-# Lệnh :cauca
+# Commands
 # -----------------------------
-@bot.command()
+@bot.command(name="cauca")
 async def cauca(ctx):
     user = ctx.author.id
     if user not in gears:
@@ -123,144 +95,127 @@ async def cauca(ctx):
             "rod_dur": shop_items["🎣 Cần tre"]["durability"],
             "bait_dur": shop_items["🪱 Mồi thường"]["durability"]
         }
-    if gears[user]["rod_dur"] <=0:
-        await ctx.send("❌ Cần câu đã hỏng, mua mới trong :shop!")
+
+    if gears[user]["rod_dur"] <= 0:
+        await ctx.send("❌ Cần câu của bạn đã hỏng!")
         return
-    if gears[user]["bait_dur"] <=0:
-        await ctx.send("❌ Hết mồi, mua thêm trong :shop!")
+    if gears[user]["bait_dur"] <= 0:
+        await ctx.send("❌ Hết mồi!")
         return
-    gears[user]["rod_dur"] -=1
-    gears[user]["bait_dur"] -=1
-    caught=[]
+
+    gears[user]["rod_dur"] -= 1
+    gears[user]["bait_dur"] -= 1
+
+    caught = []
+    xp_gained = 0
     for _ in range(random.randint(1,3)):
         fish, weight, rarity, price = get_random_fish(user)
-        inventories.setdefault(user, []).append((fish, weight, rarity))
-        fish_log.setdefault(user, {})
+        inventories.setdefault(user,[]).append((fish,weight,rarity))
+        fish_log.setdefault(user,{})
         if fish not in fish_log[user]:
-            fish_log[user][fish] = {"rarity": rarity, "max_weight": weight}
+            fish_log[user][fish] = {"rarity":rarity,"max_weight":weight}
         else:
             if weight > fish_log[user][fish]["max_weight"]:
-                fish_log[user][fish]["max_weight"]=weight
+                fish_log[user][fish]["max_weight"] = weight
         caught.append(f"{fish} — {rarity} — {weight}kg")
-    await ctx.send(f"{ctx.author.mention} 🎣 câu được:\n" + "\n".join(caught) + 
-                   f"\n⚙️ Durability: Rod {gears[user]['rod_dur']} | Bait {gears[user]['bait_dur']}")
+        xp_gained += 10  # mỗi cá +10 XP
 
-# -----------------------------
-# Lệnh :inventory
-# -----------------------------
-@bot.command()
+    add_xp(user,xp_gained)
+    level = levels[user]["level"]
+
+    embed = discord.Embed(title=f"🎣 {ctx.author.name} vừa câu được:", color=0x00ff00)
+    embed.description = "\n".join(caught)
+    embed.set_footer(text=f"⚙️ Rod: {gears[user]['rod_dur']} | Bait: {gears[user]['bait_dur']} | Level: {level} (+{xp_gained} XP)")
+    await ctx.send(embed=embed)
+
+@bot.command(name="inventory")
 async def inventory(ctx):
-    user=ctx.author.id
+    user = ctx.author.id
     if user not in inventories or not inventories[user]:
         await ctx.send("🎒 Túi của bạn đang rỗng!")
         return
-    items="\n".join([f"{fish} ({w}kg, {r})" for fish,w,r in inventories[user]])
+    embed = discord.Embed(title=f"🎒 Túi đồ {ctx.author.name}", color=0x00ff00)
+    items = "\n".join([f"{fish} ({w}kg, {r})" for fish,w,r in inventories[user]])
     bal = balances.get(user,0)
-    await ctx.send(f"🎒 Túi đồ {ctx.author.mention}:\n{items}\n\n💰 Số dư: {bal:,} VNĐ")
+    lvl = levels.get(user,{"level":1,"xp":0})
+    embed.add_field(name="Items", value=items, inline=False)
+    embed.add_field(name="Số dư", value=f"{bal:,} VNĐ", inline=True)
+    embed.add_field(name="Level", value=f"{lvl['level']} (+{lvl['xp']} XP)", inline=True)
+    await ctx.send(embed=embed)
 
-# -----------------------------
-# Lệnh :ban
-# -----------------------------
-@bot.command()
-async def ban(ctx):
-    user=ctx.author.id
-    if user not in inventories or not inventories[user]:
-        await ctx.send("👜 Túi trống!")
-        return
-    total=0
-    details=[]
-    for fish,weight,rarity in inventories[user]:
-        price = fish_data[rarity][fish]*weight
-        total+=price
-        details.append(f"{fish} ({weight}kg, {rarity}) = {round(price):,} VNĐ")
-    inventories[user].clear()
-    balances[user]=balances.get(user,0)+total
-    await ctx.send(f"💸 {ctx.author.mention} bán cá!\n" + "\n".join(details) + f"\n**Tổng: {round(total):,} VNĐ**")
-
-# -----------------------------
-# Lệnh :shop
-# -----------------------------
-@bot.command()
+@bot.command(name="shop")
 async def shop(ctx):
-    items="\n".join([f"{item} — {info['price']:,} VNĐ (Luck {info['luck']} | Durability {info['durability']})"
-                     for item,info in shop_items.items()])
-    await ctx.send(f"🛒 **Shop**:\n{items}\n\nDùng :mua <tên> để mua")
+    embed = discord.Embed(title="🛒 Shop", color=0x00ff00)
+    for item, info in shop_items.items():
+        embed.add_field(name=item, value=f"Price: {info['price']:,} VNĐ | Luck: {info['luck']} | Durability: {info['durability']}", inline=False)
+    await ctx.send(embed=embed)
 
-# -----------------------------
-# Lệnh :mua
-# -----------------------------
-@bot.command()
-async def mua(ctx, *, item):
-    user=ctx.author.id
+@bot.command(name="mua")
+async def mua(ctx, *, item: str):
+    user = ctx.author.id
     if item not in shop_items:
         await ctx.send("❌ Item không tồn tại!")
         return
     price = shop_items[item]["price"]
-    if balances.get(user,0)<price:
+    if balances.get(user,0) < price:
         await ctx.send("❌ Không đủ tiền!")
         return
-    balances[user]-=price
+    balances[user] -= price
     if "Cần" in item:
-        gears.setdefault(user,{})["rod"]=shop_items[item].copy()
-        gears[user]["rod_dur"]=shop_items[item]["durability"]
+        gears.setdefault(user,{})["rod"] = shop_items[item].copy()
+        gears[user]["rod_dur"] = shop_items[item]["durability"]
     elif "Mồi" in item:
-        gears.setdefault(user,{})["bait"]=shop_items[item].copy()
-        gears[user]["bait_dur"]=shop_items[item]["durability"]
-    await ctx.send(f"✅ {ctx.author.mention} đã mua {item} thành công!")
+        gears.setdefault(user,{})["bait"] = shop_items[item].copy()
+        gears[user]["bait_dur"] = shop_items[item]["durability"]
+    await ctx.send(f"✅ {ctx.author.name} đã mua {item} thành công!")
 
-# -----------------------------
-# Lệnh :leaderboard
-# -----------------------------
-@bot.command()
-async def leaderboard(ctx):
-    if not balances:
-        await ctx.send("📉 Chưa có ai bán cá!")
+@bot.command(name="ban")
+async def ban(ctx):
+    user = ctx.author.id
+    if user not in inventories or not inventories[user]:
+        await ctx.send("👜 Túi trống!")
         return
-    ranking = sorted(balances.items(), key=lambda x:x[1], reverse=True)[:10]
-    msg=[]
-    for i,(user_id,money) in enumerate(ranking,start=1):
-        user=await bot.fetch_user(user_id)
-        msg.append(f"**{i}.** {user.name} — {money:,} VNĐ")
-    await ctx.send("🏆 **Top 10 ngư ông giàu nhất** 🏆\n\n"+"\n".join(msg))
+    total = 0
+    details = []
+    for fish,weight,rarity in inventories[user]:
+        price = fish_data[rarity][fish]*weight
+        total += price
+        details.append(f"{fish} ({weight}kg, {rarity}) = {round(price):,} VNĐ")
+    inventories[user].clear()
+    balances[user] = balances.get(user,0)+total
+    embed = discord.Embed(title=f"💸 {ctx.author.name} bán cá thành công!", color=0x00ff00)
+    embed.description = "\n".join(details) + f"\n**Tổng cộng: {round(total):,} VNĐ**"
+    await ctx.send(embed=embed)
 
-# -----------------------------
-# Lệnh :fishdex
-# -----------------------------
-@bot.command()
+@bot.command(name="fishdex")
 async def fishdex(ctx):
-    user=ctx.author.id
+    user = ctx.author.id
     if user not in fish_log or not fish_log[user]:
-        await ctx.send("📖 Bạn chưa câu được con cá nào!")
+        await ctx.send("📘 Fishdex trống!")
         return
-    records=[f"{fish} — {data['rarity']} — Max: {data['max_weight']}kg" for fish,data in fish_log[user].items()]
-    await ctx.send(f"📖 Hồ sơ câu cá {ctx.author.mention}:\n"+"\n".join(records))
+    embed = discord.Embed(title=f"📘 Fishdex {ctx.author.name}", color=0x00ff00)
+    for fish,info in fish_log[user].items():
+        embed.add_field(name=fish, value=f"Rarity: {info['rarity']}\nMax Weight: {info['max_weight']}kg", inline=False)
+    await ctx.send(embed=embed)
 
 # -----------------------------
-# Lệnh :help
+# Keep bot alive
 # -----------------------------
-@bot.command()
-async def help(ctx):
-    commands_list=[
-        ":cauca — Câu cá 🎣",
-        ":inventory — Xem túi đồ 🎒",
-        ":ban — Bán cá 💸",
-        ":shop — Xem shop 🛒",
-        ":mua — Mua item",
-        ":leaderboard — BXH ngư ông 💰",
-        ":fishdex — Hồ sơ cá 📖",
-        ":help — Hướng dẫn lệnh"
-    ]
-    await ctx.send("📜 **Danh sách lệnh** 📜\n"+"".join(commands_list))
+app = Flask("")
+@app.route("/")
+def home():
+    return "Bot is running!"
+
+def run():
+    app.run(host="0.0.0.0", port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+keep_alive()
 
 # -----------------------------
-# Giữ bot luôn online
-# -----------------------------
-@tasks.loop(minutes=5)
-async def keep_alive():
-    pass
-keep_alive.start()
-
-# -----------------------------
-# Chạy bot
+# Run bot
 # -----------------------------
 bot.run(os.getenv("DISCORD_TOKEN"))
