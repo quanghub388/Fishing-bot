@@ -16,23 +16,27 @@ bot = commands.Bot(command_prefix=":", intents=intents)
 # Fish, rarity, shop
 # -----------------------------
 fish_data = {
-    "Common": {"🐟 Cá chép": 6000, "🐠 Cá rô phi": 4000, "🐡 Cá trê": 5000, "🐠 Cá basa": 5500},
-    "Uncommon": {"🐟 Cá lóc": 7000, "🐠 Cá chim trắng": 8000, "🐟 Cá mè": 6000, "🦐 Tôm": 25000},
-    "Rare": {"🐟 Cá hồi": 35000, "🦑 Mực": 20000, "🐟 Cá bống tượng": 18000},
-    "Epic": {"🐟 Cá tra dầu": 40000, "🐍 Cá chình": 50000, "🐠 Cá dìa": 22000, "🦪 Bào ngư": 60000},
-    "Legendary": {"🐟 Cá ngừ đại dương": 70000, "🐋 Cá nhám voi": 100000, "🐟 Cá nhụ": 45000, "🦪 Sò điệp lớn": 55000},
-    "Mythic": {"🦈 Cá mập": 150000, "🐢 Rùa Hoàn Kiếm": 500000, "💎 Ngọc trai quý": 300000}
+    "Common": {"🐟 Cá chép": 600, "🐠 Cá rô phi": 400, "🐡 Cá trê": 500, "🐠 Cá basa": 550},
+    "Uncommon": {"🐟 Cá lóc": 700, "🐠 Cá chim trắng": 800, "🐟 Cá mè": 600, "🦐 Tôm": 2500},
+    "Rare": {"🐟 Cá hồi": 3500, "🦑 Mực": 2000, "🐟 Cá bống tượng": 1800},
+    "Epic": {"🐟 Cá tra dầu": 4000, "🐍 Cá chình": 5000, "🐠 Cá dìa": 2200, "🦪 Bào ngư": 6000},
+    "Legendary": {"🐟 Cá ngừ đại dương": 7000, "🐋 Cá nhám voi": 10000, "🐟 Cá nhụ": 4500, "🦪 Sò điệp lớn": 5500},
+    "Mythic": {"🦈 Cá mập": 15000, "🐢 Rùa Hoàn Kiếm": 50000, "💎 Ngọc trai quý": 30000}
+    "Exotic": {"CatFish":100000,"Megalodon":350000}
 }
 
-rarity_base_rates = {"Common":60,"Uncommon":20,"Rare":10,"Epic":5,"Legendary":3,"Mythic":2}
+rarity_base_rates = {"Common":60,"Uncommon":20,"Rare":10,"Epic":4,"Legendary":3,"Mythic":2,"Exotic":1}
 
 shop_items = {
     "🎣 Cần tre":{"price":0,"luck":0,"durability":50},
     "🎣 Cần sắt":{"price":10000,"luck":5,"durability":100},
     "🎣 Cần vàng":{"price":50000,"luck":15,"durability":200},
     "🎣 Cần kim cương":{"price":200000,"luck":30,"durability":500},
+    "🎣 Cần titan":{"price":2000000,"luck":50,"durability":1000},
     "🪱 Mồi thường":{"price":100,"luck":2,"durability":20},
-    "🪱 Mồi đặc biệt":{"price":1000,"luck":10,"durability":50},
+    "🪱 Giun đất":{"price":500,"luck":3,"durability":35},
+    "🪱 Mồi đặc biệt":{"price":1000,"luck":7,"durability":50},
+    "🪱 Mồi chuyên nghiệp":{"price":10000,"luck":10,"durability":75
 }
 
 # -----------------------------
@@ -48,7 +52,7 @@ levels = {}   # user_id: {"xp":x,"level":y}
 # Helpers
 # -----------------------------
 def random_weight(rarity):
-    ranges = {"Common":(0.2,3),"Uncommon":(0.5,4),"Rare":(1,6),"Epic":(2,10),"Legendary":(5,50),"Mythic":(10,200)}
+    ranges = {"Common":(0.2,3),"Uncommon":(0.5,4),"Rare":(1,6),"Epic":(2,10),"Legendary":(5,50),"Mythic":(10,200),"Exotic":(50,1000)}
     return round(random.uniform(*ranges[rarity]),2)
 
 def get_random_fish(user):
@@ -65,6 +69,7 @@ def get_random_fish(user):
     rates["Legendary"] += luck_bonus//3
     rates["Mythic"] += luck_bonus//5
     rates["Common"] = max(5, rates["Common"] - luck_bonus)
+    rates["Exotic"] += luck_bonus//10
 
     rarities, probs = zip(*rates.items())
     rarity = random.choices(rarities, weights=probs, k=1)[0]
