@@ -137,6 +137,22 @@ async def level(ctx):
     p = players[user_id]
     await ctx.send(f"{ctx.author.name}, bạn đang level {p['level']} với {p['exp']} exp.")
 
-# === RUN BOT ===
+# --- Phần web server để Render free coi là Web Service ---
+from flask import Flask
+import threading
+
+app = Flask("")
+
+@app.route("/")
+def home():
+    return "Bot is running!"
+
+def run_web():
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+threading.Thread(target=run_web).start()
+
+# --- Chạy bot Discord ---
 bot.run(os.getenv("DISCORD_TOKEN"))
+
         
