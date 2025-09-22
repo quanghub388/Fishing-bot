@@ -1,313 +1,213 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
 import random
 import json
 import os
 from flask import Flask
-import threading
+from threading import Thread
 
-# ========================== CONFIG ==========================
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
-
 bot = commands.Bot(command_prefix=":", intents=intents)
-tree = app_commands.CommandTree(bot)
 
-DATA_FILE = "data.json"
+# ========================== HTTP KEEP-ALIVE ==========================
+app = Flask('')
 
-# ========================== SAVE / LOAD ==========================
+@app.route('/')
+def home():
+    return "Fishing Bot is alive!"
+
+def run():
+    app.run(host="0.0.0.0", port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# ========================== SAVE & LOAD ==========================
+SAVE_FILE = "data.json"
+
 def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
+    if os.path.exists(SAVE_FILE):
+        with open(SAVE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {}
+    return {"users": {}}
 
 def save_data():
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(user_data, f, ensure_ascii=False, indent=4)
+    with open(SAVE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
-user_data = load_data()
+data = load_data()
 
-# ========================== SHOP DATA ==========================
-fish_types = {
-    "common": [
-        {"name": "🐟 Cá chép", "price": 100},
-        {"name": "🐠 Cá rô phi", "price": 120},
-        {"name": "🐡 Cá nóc", "price": 150}
-    ],
-    "uncommon": [
-        {"name": "🐟 Cá trắm", "price": 300},
-        {"name": "🐠 Cá mè", "price": 350}
-    ],
-    "rare": [
-        {"name": "🦈 Cá mập con", "price": 1000},
-        {"name": "🐡 Cá nóc hiếm", "price": 1200}
-    ],
-    "epic": [
-        {"name": "🐬 Cá heo", "price": 5000},
-        {"name": "🦑 Mực khổng lồ", "price": 7000}
-    ],
-    "legendary": [
-        {"name": "🐉 Rồng biển", "price": 20000},
-        {"name": "🐋 Cá voi xanh", "price": 15000}
-    ],
-    "mythic": [
-        {"name": "🐲 Leviathan", "price": 50000}
-    ],
-    "exotic": [
-        {"name": "🐊 Cá sấu cổ đại", "price": 350000},
-        {"name": "🦈 Megalodon", "price": 500000}
-    ]
-}
-
-shop_rods = {
-    "🎣 Cần tre": {"price": 500, "luck": 1, "durability": 50},
-    "🪝 Cần sắt": {"price": 2000, "luck": 2, "durability": 100},
-    "⚓ Cần vàng": {"price": 10000, "luck": 4, "durability": 200}
-}
-
-shop_baits = {
-    "🪱 Giun đất": {"price": 200, "luck": 1, "durability": 20},
-    "🦐 Tôm nhỏ": {"price": 500, "luck": 2, "durability": 25},
-    "🐛 Sâu đặc biệt": {"price": 1500, "luck": 3, "durability": 30}
-}
-
-# ========================== INIT DATA ==========================
 def get_user(user_id):
-    if str(user_id) not in user_data:
-        user_data[str(user_id)] = {
-            "coins": 0,
-            "inventory": {"fish": {}, "rods": {}, "baits": {}}
+    if str(user_id) not in data["users"]:
+        data["users"][str(user_id)] = {
+            "money": 0,
+            "inventory": {},
+            "rods": [],
+            "baits": []
         }
-    return user_data[str(user_id)]
+    return data["users"][str(user_id)]
+
+# ========================== FISH LIST ==========================
+fish_list = {
+    "common": {
+        "🐟 Cá rô phi": 10,
+        "🐠 Cá vàng": 15,
+        "🦐 Tôm nhỏ": 8,
+        "🐡 Cá nóc": 20,
+        "🦀 Cua đồng": 12
+    },
+    "uncommon": {
+        "🐟 Cá trê": 50,
+        "🐡 Cá chép": 60,
+        "🦐 Tôm hùm baby": 80,
+        "🐢 Rùa nước ngọt": 100
+    },
+    "rare": {
+        "🐠 Cá hồi": 200,
+        "🐟 Cá ngừ": 250,
+        "🦑 Mực nang": 300
+    },
+    "epic": {
+        "🦈 Cá mập con": 1000,
+        "🐬 Cá heo": 1200,
+        "🐟 Cá chim trắng": 900
+    },
+    "legendary": {
+        "🐉 Rồng biển": 5000,
+        "🐡 Cá mặt trăng": 4000,
+        "🐟 Cá đuối khổng lồ": 4500
+    },
+    "mythic": {
+        "🐲 Leviathan": 20000,
+        "🦈 Megalodon": 500000
+    },
+    "exotic": {
+        "🐟 Exotic Koi": 350000
+    }
+}
+
+rarity_weights = {
+    "common": 60,
+    "uncommon": 25,
+    "rare": 10,
+    "epic": 4,
+    "legendary": 0.9,
+    "mythic": 0.5,
+    "exotic": 0.1
+}
 
 # ========================== COMMANDS ==========================
 @bot.event
 async def on_ready():
-    await tree.sync()
-    print(f"Bot đã đăng nhập thành công dưới tên {bot.user}")
+    await bot.tree.sync()
+    print(f"✅ Bot {bot.user} đã online và slash commands đã sync!")
 
 # :sotien
 @bot.command(name="sotien")
 async def sotien(ctx):
     user = get_user(ctx.author.id)
-    await ctx.send(f"{ctx.author.mention}, bạn đang có 💶 {user['coins']} Coincat")
+    await ctx.send(f"💶 {ctx.author.mention}, bạn đang có **{user['money']} Coincat**.")
+
+# :cauca
+@bot.command(name="cauca")
+async def cauca(ctx):
+    user = get_user(ctx.author.id)
+    rarity = random.choices(list(rarity_weights.keys()), weights=rarity_weights.values())[0]
+    fish, price = random.choice(list(fish_list[rarity].items()))
+    user["inventory"][fish] = user["inventory"].get(fish, 0) + 1
+    save_data()
+    await ctx.send(f"🎣 {ctx.author.mention} câu được {fish} ({rarity.upper()}) trị giá 💶 {price} Coincat!")
 
 # :khodo
 @bot.command(name="khodo")
 async def khodo(ctx):
     user = get_user(ctx.author.id)
-    fish_inv = user["inventory"]["fish"]
-    if not fish_inv:
-        await ctx.send("Bạn chưa có con cá nào 🐟")
+    if not user["inventory"]:
+        await ctx.send("📦 Kho đồ của bạn trống rỗng!")
         return
-    msg = "🎒 **Kho đồ cá của bạn:**\n"
-    for fish, amount in fish_inv.items():
-        msg += f"{fish}: {amount} con\n"
-    await ctx.send(msg)
-
-# :cuahang
-@bot.command(name="cuahang")
-async def cuahang(ctx):
-    msg = "🛒 **Cửa hàng**\n\n🎣 Cần câu:\n"
-    for rod, info in shop_rods.items():
-        msg += f"{rod} - 💶 {info['price']} Coincat\n"
-    msg += "\n🪱 Mồi:\n"
-    for bait, info in shop_baits.items():
-        msg += f"{bait} - 💶 {info['price']} Coincat\n"
-    await ctx.send(msg)
-
-# :mua
-@bot.command(name="mua")
-async def mua(ctx, *, item_name):
-    user = get_user(ctx.author.id)
-    item = None
-    if item_name in shop_rods:
-        item = shop_rods[item_name]
-        category = "rods"
-    elif item_name in shop_baits:
-        item = shop_baits[item_name]
-        category = "baits"
-    if item:
-        if user["coins"] >= item["price"]:
-            user["coins"] -= item["price"]
-            user["inventory"][category][item_name] = user["inventory"][category].get(item_name, 0) + 1
-            save_data()
-            await ctx.send(f"Bạn đã mua {item_name} thành công!")
-        else:
-            await ctx.send("Bạn không đủ tiền 💸")
-    else:
-        await ctx.send("Không tìm thấy vật phẩm!")
+    items = "\n".join([f"{fish} x{amount}" for fish, amount in user["inventory"].items()])
+    await ctx.send(f"🎒 Kho đồ của {ctx.author.mention}:\n{items}")
 
 # :banca
 @bot.command(name="banca")
 async def banca(ctx, *, fish_name=None):
     user = get_user(ctx.author.id)
-    fish_inv = user["inventory"]["fish"]
-
-    if not fish_inv:
-        await ctx.send("Bạn không có con cá nào để bán 🐟")
+    if not user["inventory"]:
+        await ctx.send("❌ Bạn không có cá nào để bán!")
         return
 
-    if fish_name is None:
-        # bán tất cả cá
+    if fish_name is None or fish_name.lower() == "all":
         total = 0
-        for rarity in fish_types:
-            for fish in fish_types[rarity]:
-                name, price = fish["name"], fish["price"]
-                if name in fish_inv:
-                    total += price * fish_inv[name]
-        user["coins"] += total
-        user["inventory"]["fish"] = {}
+        for rarity, fishes in fish_list.items():
+            for fish, price in fishes.items():
+                if fish in user["inventory"]:
+                    total += price * user["inventory"][fish]
+        user["money"] += total
+        user["inventory"] = {}
         save_data()
-        await ctx.send(f"Bạn đã bán toàn bộ cá và nhận 💶 {total} Coincat!")
+        await ctx.send(f"💰 {ctx.author.mention} đã bán toàn bộ cá và nhận được 💶 {total} Coincat!")
     else:
-        # bán 1 loại cá
-        sold = False
-        for rarity in fish_types:
-            for fish in fish_types[rarity]:
-                if fish_name == fish["name"]:
-                    if fish_name in fish_inv and fish_inv[fish_name] > 0:
-                        amount = fish_inv[fish_name]
-                        coins = fish["price"] * amount
-                        user["coins"] += coins
-                        del fish_inv[fish_name]
+        for rarity, fishes in fish_list.items():
+            for fish, price in fishes.items():
+                if fish_name.lower() in fish.lower():
+                    if fish in user["inventory"] and user["inventory"][fish] > 0:
+                        user["money"] += price
+                        user["inventory"][fish] -= 1
+                        if user["inventory"][fish] == 0:
+                            del user["inventory"][fish]
                         save_data()
-                        await ctx.send(f"Bạn đã bán {amount}x {fish_name} và nhận 💶 {coins} Coincat!")
-                        sold = True
-                    else:
-                        await ctx.send("Bạn không có con cá này.")
-                        sold = True
-        if not sold:
-            await ctx.send("Không tìm thấy loại cá này.")
-# ========================== SLASH COMMANDS ==========================
+                        await ctx.send(f"💰 {ctx.author.mention} đã bán {fish} và nhận được 💶 {price} Coincat!")
+                        return
+        await ctx.send("❌ Không tìm thấy cá bạn muốn bán!")
 
-@tree.command(name="sotien", description="Xem số tiền bạn đang có")
-async def sotien_slash(interaction: discord.Interaction):
-    user = get_user(interaction.user.id)
-    await interaction.response.send_message(
-        f"{interaction.user.mention}, bạn đang có 💶 {user['coins']} Coincat"
-    )
-
-@tree.command(name="khodo", description="Xem kho đồ cá của bạn")
-async def khodo_slash(interaction: discord.Interaction):
-    user = get_user(interaction.user.id)
-    fish_inv = user["inventory"]["fish"]
-    if not fish_inv:
-        await interaction.response.send_message("Bạn chưa có con cá nào 🐟")
-        return
-    msg = "🎒 **Kho đồ cá của bạn:**\n"
-    for fish, amount in fish_inv.items():
-        msg += f"{fish}: {amount} con\n"
-    await interaction.response.send_message(msg)
-
-@tree.command(name="cuahang", description="Xem cửa hàng")
-async def cuahang_slash(interaction: discord.Interaction):
-    msg = "🛒 **Cửa hàng**\n\n🎣 Cần câu:\n"
-    for rod, info in shop_rods.items():
-        msg += f"{rod} - 💶 {info['price']} Coincat\n"
-    msg += "\n🪱 Mồi:\n"
-    for bait, info in shop_baits.items():
-        msg += f"{bait} - 💶 {info['price']} Coincat\n"
-    await interaction.response.send_message(msg)
-
-@tree.command(name="mua", description="Mua vật phẩm trong cửa hàng")
-async def mua_slash(interaction: discord.Interaction, item_name: str):
-    user = get_user(interaction.user.id)
-    item = None
-    if item_name in shop_rods:
-        item = shop_rods[item_name]
-        category = "rods"
-    elif item_name in shop_baits:
-        item = shop_baits[item_name]
-        category = "baits"
-    if item:
-        if user["coins"] >= item["price"]:
-            user["coins"] -= item["price"]
-            user["inventory"][category][item_name] = user["inventory"][category].get(item_name, 0) + 1
-            save_data()
-            await interaction.response.send_message(f"Bạn đã mua {item_name} thành công!")
-        else:
-            await interaction.response.send_message("Bạn không đủ tiền 💸")
-    else:
-        await interaction.response.send_message("Không tìm thấy vật phẩm!")
-
-@tree.command(name="banca", description="Bán cá lấy Coincat")
-async def banca_slash(interaction: discord.Interaction, fish_name: str = None):
-    user = get_user(interaction.user.id)
-    fish_inv = user["inventory"]["fish"]
-
-    if not fish_inv:
-        await interaction.response.send_message("Bạn không có con cá nào để bán 🐟")
-        return
-
-    if fish_name is None:
-        total = 0
-        for rarity in fish_types:
-            for fish in fish_types[rarity]:
-                name, price = fish["name"], fish["price"]
-                if name in fish_inv:
-                    total += price * fish_inv[name]
-        user["coins"] += total
-        user["inventory"]["fish"] = {}
-        save_data()
-        await interaction.response.send_message(f"Bạn đã bán toàn bộ cá và nhận 💶 {total} Coincat!")
-    else:
-        sold = False
-        for rarity in fish_types:
-            for fish in fish_types[rarity]:
-                if fish_name == fish["name"]:
-                    if fish_name in fish_inv and fish_inv[fish_name] > 0:
-                        amount = fish_inv[fish_name]
-                        coins = fish["price"] * amount
-                        user["coins"] += coins
-                        del fish_inv[fish_name]
-                        save_data()
-                        await interaction.response.send_message(f"Bạn đã bán {amount}x {fish_name} và nhận 💶 {coins} Coincat!")
-                        sold = True
-                    else:
-                        await interaction.response.send_message("Bạn không có con cá này.")
-                        sold = True
-        if not sold:
-            await interaction.response.send_message("Không tìm thấy loại cá này.")
-
-# ========================== CHUYỂN TIỀN ==========================
-
+# :chuyentien
 @bot.command(name="chuyentien")
 async def chuyentien(ctx, member: discord.Member, amount: int):
     sender = get_user(ctx.author.id)
     receiver = get_user(member.id)
 
     if amount <= 0:
-        await ctx.send("Số tiền phải lớn hơn 0 💸")
+        await ctx.send("❌ Số tiền không hợp lệ!")
         return
     if amount > 300000:
-        await ctx.send("Bạn chỉ có thể chuyển tối đa 💶 300000 Coincat/lần")
+        await ctx.send("❌ Giới hạn chuyển tối đa là 300000 Coincat!")
         return
-    if sender["coins"] < amount:
-        await ctx.send("Bạn không đủ tiền để chuyển!")
+    if sender["money"] < amount:
+        await ctx.send("❌ Bạn không đủ tiền để chuyển!")
         return
 
-    sender["coins"] -= amount
-    receiver["coins"] += amount
+    sender["money"] -= amount
+    receiver["money"] += amount
     save_data()
-    await ctx.send(f"{ctx.author.mention} đã chuyển 💶 {amount} Coincat cho {member.mention}!")
+    await ctx.send(f"💸 {ctx.author.mention} đã chuyển 💶 {amount} Coincat cho {member.mention}!")
 
-# ========================== WEB SERVICE (KEEP ALIVE) ==========================
+# ========================== SLASH COMMANDS ==========================
+@bot.tree.command(name="sotien", description="Xem số tiền bạn đang có")
+async def sotien_slash(interaction: discord.Interaction):
+    user = get_user(interaction.user.id)
+    await interaction.response.send_message(f"💶 {interaction.user.mention}, bạn đang có **{user['money']} Coincat**.")
 
-app = Flask("")
+@bot.tree.command(name="cauca", description="Câu cá và nhận phần thưởng!")
+async def cauca_slash(interaction: discord.Interaction):
+    user = get_user(interaction.user.id)
+    rarity = random.choices(list(rarity_weights.keys()), weights=rarity_weights.values())[0]
+    fish, price = random.choice(list(fish_list[rarity].items()))
+    user["inventory"][fish] = user["inventory"].get(fish, 0) + 1
+    save_data()
+    await interaction.response.send_message(f"🎣 {interaction.user.mention} câu được {fish} ({rarity.upper()}) trị giá 💶 {price} Coincat!")
 
-@app.route("/")
-def home():
-    return "Fishing Bot is running!"
+@bot.tree.command(name="khodo", description="Xem kho đồ cá của bạn")
+async def khodo_slash(interaction: discord.Interaction):
+    user = get_user(interaction.user.id)
+    if not user["inventory"]:
+        await interaction.response.send_message("📦 Kho đồ của bạn trống rỗng!")
+        return
+    items = "\n".join([f"{fish} x{amount}" for fish, amount in user["inventory"].items()])
+    await interaction.response.send_message(f"🎒 Kho đồ của {interaction.user.mention}:\n{items}")
 
-def run():
-    app.run(host="0.0.0.0", port=8080)
-
-threading.Thread(target=run).start()
-
-# ========================== RUN BOT ==========================
+# ========================== RUN ==========================
+keep_alive()
 bot.run(os.getenv("DISCORD_TOKEN"))
-                      
+        
