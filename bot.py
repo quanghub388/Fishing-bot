@@ -1,183 +1,131 @@
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-import os
 import random
+import os
 from flask import Flask
+import threading
 
-# --- Web service để bot luôn online trên Render ---
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "Fishing Bot is running!"
-
-def run_flask():
-    from threading import Thread
-    Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))).start()
-
-# --- Bot setup ---
+# ====================== CONFIG ======================
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=":", intents=intents)
-tree = bot.tree  # slash commands
+TOKEN = os.getenv("DISCORD_TOKEN")
 
-run_flask()
-
-# --- Data ---
+# ====================== DATA ========================
+# Cá với giá đã giảm 10 lần trừ Exotic
 fishes = {
-    "Common": {
-        "🐟 Cá Trích": 50,
-        "🐠 Cá Hồi": 70,
-        "🐡 Cá Vàng": 100,
-    },
-    "Uncommon": {
-        "🦈 Cá Mập Nhỏ": 500,
-        "🐋 Cá Voi Nhỏ": 700,
-    },
-    "Epic": {
-        "🐠 Cá Ngũ Sắc": 2000,
-        "🐟 Cá Hồng": 1500,
-    },
-    "Legendary": {
-        "🐉 Cá Rồng": 5000,
-        "🦑 Mực Khổng Lồ": 5500,
-    },
-    "Mythic": {
-        "🦈 Cá Megalodon": 100000,
-    },
-    "Exotic": {
-        "🦑 CatFish": 350000,
-        "🦈 Megalodon": 500000,
-    }
+    # Common
+    "🐟 Cá trích": {"price": 10, "luck": 3, "level_exp": 5},
+    "🐠 Cá rô": {"price": 15, "luck": 4, "level_exp": 6},
+    "🐡 Cá vàng": {"price": 20, "luck": 5, "level_exp": 8},
+    # Uncommon
+    "🐟 Cá hồng": {"price": 50, "luck": 10, "level_exp": 12},
+    "🐠 Cá chép": {"price": 60, "luck": 12, "level_exp": 15},
+    # Epic
+    "🦈 Cá mập con": {"price": 100, "luck": 15, "level_exp": 20},
+    "🐠 Cá kiếm": {"price": 120, "luck": 18, "level_exp": 25},
+    # Legendary
+    "🐋 Cá voi": {"price": 200, "luck": 25, "level_exp": 35},
+    # Mythic
+    "🦈 Cá Megalodon Baby": {"price": 300, "luck": 30, "level_exp": 50},
+    # Exotic (không giảm giá)
+    "🐟 CatFish": {"price": 350000, "luck": 50, "level_exp": 500},
+    "🦈 Megalodon": {"price": 500000, "luck": 60, "level_exp": 800},
 }
 
+# Cần + Mồi
 rods = {
-    "Cần tre": {"price": 100, "durability": 50, "luck": 1},
-    "Cần sắt": {"price": 500, "durability": 100, "luck": 3},
-    "Cần vàng": {"price": 5000, "durability": 200, "luck": 5},
-    "Cần titan": {"price": 20000, "durability": 500, "luck": 8},
-    "Cần newbie": {"price": 10, "durability": 20, "luck": 0.5}
+    "Cần tre": {"price": 100, "durability": 10},
+    "Cần sắt": {"price": 500, "durability": 30},
+    "Cần vàng": {"price": 2000, "durability": 50},
+    "Cần kim cương": {"price": 10000, "durability": 100},
+    "Cần newbie": {"price": 10, "durability": 5},
 }
 
 baits = {
-    "🪱 Giun đất": {"price": 50, "luck": 2},
-    "🦐 Tôm nhỏ": {"price": 100, "luck": 3},
-    "🐛 Sâu vàng": {"price": 200, "luck": 5},
-    "🦑 Mực con": {"price": 500, "luck": 7},
-    "🦐 Tôm hùm": {"price": 1000, "luck": 10}
+    "🪱 Giun đất": {"price": 500, "luck": 3, "durability": 35},
+    "🐛 Sâu đất": {"price": 1000, "luck": 5, "durability": 50},
+    "🦐 Tôm nhỏ": {"price": 2000, "luck": 10, "durability": 80},
+    "🍤 Mồi tôm": {"price": 5000, "luck": 20, "durability": 120},
+    "🐟 Cá nhỏ": {"price": 100, "luck": 2, "durability": 20},
+    "🐞 Bọ cánh cứng": {"price": 50, "luck": 1, "durability": 15},
 }
 
-users = {}  # user_id: {"money": int, "rod": str, "bait": str, "inventory": {}, "level": int, "exp": int}
+# Player data
+players = {}  # {user_id: {"level": int, "exp": int, "rod": str, "bait": str, "fish": []}}
 
-# --- Helper ---
-def get_user(uid):
-    if uid not in users:
-        users[uid] = {"money": 1000, "rod": "Cần tre", "bait": "🪱 Giun đất", "inventory": {}, "level": 1, "exp": 0}
-    return users[uid]
+# ====================== FLASK APP ====================
+app = Flask('')
 
-def gain_exp(user, amount):
-    user["exp"] += amount
-    if user["exp"] >= user["level"] * 100:
-        user["exp"] -= user["level"] * 100
-        user["level"] += 1
-        return True
-    return False
+@app.route('/')
+def home():
+    return "Fishing Bot is running!"
 
-def catch_fish(user):
-    rod_luck = rods[user["rod"]]["luck"]
-    bait_luck = baits[user["bait"]]["luck"]
-    luck = rod_luck + bait_luck
-    # Exotic chance 0.1%
-    if random.random() < 0.001:
-        fish = random.choice(list(fishes["Exotic"].keys()))
-    else:
-        pool = []
-        for tier in ["Common","Uncommon","Epic","Legendary","Mythic"]:
-            for f in fishes[tier]:
-                pool.extend([f]*1)  # weight can be tuned
-        fish = random.choice(pool)
-    price = None
-    for tier in fishes:
-        if fish in fishes[tier]:
-            price = fishes[tier][fish]
-            break
-    user["inventory"][fish] = user["inventory"].get(fish,0) + 1
-    leveled_up = gain_exp(user, price//10)
-    return fish, price, leveled_up
+def run():
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
 
-# --- Commands ---
-@bot.command()
-async def cauca(ctx):
-    user = get_user(ctx.author.id)
-    fish, price, leveled_up = catch_fish(user)
-    embed = discord.Embed(title=f"{ctx.author.name} đã câu được!", color=0x00ff00)
-    embed.add_field(name="Cá", value=fish)
-    embed.add_field(name="Giá", value=f"{price}$")
-    embed.add_field(name="Level", value=user["level"])
-    if leveled_up:
-        embed.set_footer(text="🎉 Level Up!")
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.start()
+
+# ====================== HELP COMMAND ======================
+@bot.command(name="help")
+async def help_command(ctx):
+    embed = discord.Embed(title="Fishing Bot Commands", color=discord.Color.blue())
+    embed.add_field(name=":cauca or /cauca", value="Câu cá", inline=False)
+    embed.add_field(name=":shop or /shop", value="Xem cửa hàng cần và mồi", inline=False)
+    embed.add_field(name=":inventory or /inventory", value="Xem cá và đồ của bạn", inline=False)
+    embed.add_field(name=":upgrade or /upgrade", value="Mua cần/mồi nâng cấp", inline=False)
+    embed.add_field(name=":level or /level", value="Xem level của bạn", inline=False)
     await ctx.send(embed=embed)
 
-@bot.command()
-async def help(ctx):
-    embed = discord.Embed(title="Fishing Bot Commands", color=0x00ffff)
-    embed.add_field(name=":cauca", value="Câu cá", inline=False)
-    embed.add_field(name=":shop", value="Xem cửa hàng", inline=False)
-    embed.add_field(name=":buy <item>", value="Mua cần/mồi", inline=False)
-    embed.add_field(name=":inventory", value="Xem kho đồ", inline=False)
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def inventory(ctx):
-    user = get_user(ctx.author.id)
-    embed = discord.Embed(title=f"{ctx.author.name}'s Inventory", color=0xffcc00)
-    for fish, qty in user["inventory"].items():
-        embed.add_field(name=fish, value=qty, inline=True)
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def shop(ctx):
-    embed = discord.Embed(title="Cửa hàng", color=0xff9900)
-    rods_text = "\n".join([f"{r} - {rods[r]['price']}$" for r in rods])
-    bait_text = "\n".join([f"{b} - {baits[b]['price']}$" for b in baits])
-    embed.add_field(name="Cần", value=rods_text, inline=False)
-    embed.add_field(name="Mồi", value=bait_text, inline=False)
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def buy(ctx, *, item):
-    user = get_user(ctx.author.id)
-    if item in rods:
-        if user["money"] >= rods[item]["price"]:
-            user["money"] -= rods[item]["price"]
-            user["rod"] = item
-            await ctx.send(f"Bạn đã mua cần {item}")
-        else:
-            await ctx.send("Không đủ tiền")
-    elif item in baits:
-        if user["money"] >= baits[item]["price"]:
-            user["money"] -= baits[item]["price"]
-            user["bait"] = item
-            await ctx.send(f"Bạn đã mua mồi {item}")
-        else:
-            await ctx.send("Không đủ tiền")
-    else:
-        await ctx.send("Món không tồn tại")
-
-# --- Slash commands ---
-@tree.command(name="cauca", description="Câu cá")
+# ====================== SLASH COMMAND ======================
+@bot.tree.command(name="cauca", description="Câu cá thôi!")
 async def slash_cauca(interaction: discord.Interaction):
-    user = get_user(interaction.user.id)
-    fish, price, leveled_up = catch_fish(user)
-    embed = discord.Embed(title=f"{interaction.user.name} đã câu được!", color=0x00ff00)
-    embed.add_field(name="Cá", value=fish)
-    embed.add_field(name="Giá", value=f"{price}$")
-    embed.add_field(name="Level", value=user["level"])
-    if leveled_up:
-        embed.set_footer(text="🎉 Level Up!")
-    await interaction.response.send_message(embed=embed)
+    user_id = interaction.user.id
+    await interaction.response.defer()  # Avoid timeout
 
-# --- Run bot ---
-bot.run(os.getenv("DISCORD_TOKEN"))
-    
+    rod = "Cần newbie"
+    bait = "🪱 Giun đất"
+
+    fish_list = list(fishes.keys())
+    weights = [fishes[f]["luck"] for f in fish_list]
+
+    exotic_fishes = ["CatFish", "Megalodon"]
+    if random.randint(1, 1000) <= 1:
+        fish_caught = random.choice(exotic_fishes)
+    else:
+        fish_caught = random.choices(fish_list, weights=weights)[0]
+
+    if user_id not in players:
+        players[user_id] = {"level": 1, "exp": 0, "rod": rod, "bait": bait, "fish": []}
+
+    players[user_id]["fish"].append(fish_caught)
+    players[user_id]["exp"] += fishes[fish_caught]["level_exp"]
+
+    while players[user_id]["exp"] >= players[user_id]["level"] * 100:
+        players[user_id]["exp"] -= players[user_id]["level"] * 100
+        players[user_id]["level"] += 1
+
+    embed = discord.Embed(title=f"🎣 {interaction.user.name} câu cá!", color=discord.Color.green())
+    embed.add_field(name="Cá câu được", value=fish_caught, inline=False)
+    embed.add_field(name="Level hiện tại", value=str(players[user_id]["level"]), inline=True)
+    embed.add_field(name="Exp hiện tại", value=str(players[user_id]["exp"]), inline=True)
+    await interaction.followup.send(embed=embed)
+
+# Prefix version
+@bot.command(name="cauca")
+async def prefix_cauca(ctx):
+    user_id = ctx.author.id
+    await slash_cauca(await ctx.send("Đang câu cá..."))
+
+# ====================== READY ======================
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    keep_alive()
+    print(f"{bot.user} is online and ready!")
+
+# ====================== RUN BOT ======================
+bot.run(TOKEN)
