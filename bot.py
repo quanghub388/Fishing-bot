@@ -195,6 +195,35 @@ async def slash_transfer(interaction: discord.Interaction, member: discord.Membe
     ctx = await bot.get_context(interaction.message)
     await transfer(ctx, member, amount)
 
+@bot.tree.command(name="sell", description="Bán cá lấy tiền 💶")
+@app_commands.describe(fish_name="Tên cá muốn bán", amount="Số lượng muốn bán")
+async def slash_sell(interaction: discord.Interaction, fish_name: str, amount: int = 1):
+    user = str(interaction.user.id)
+    if user not in players or "inventory" not in players[user]:
+        await interaction.response.send_message("❌ Bạn chưa có cá nào để bán.", ephemeral=True)
+        return
+
+    inventory = players[user]["inventory"]
+    if fish_name not in inventory or inventory[fish_name] < amount:
+        await interaction.response.send_message("❌ Bạn không có đủ cá đó để bán.", ephemeral=True)
+        return
+
+    if fish_name not in fish_data:
+        await interaction.response.send_message("❌ Cá này không thể bán.", ephemeral=True)
+        return
+
+    price = fish_data[fish_name]["price"] * amount
+    inventory[fish_name] -= amount
+    if inventory[fish_name] <= 0:
+        del inventory[fish_name]
+
+    players[user]["money"] += price
+    save_players()
+    await interaction.response.send_message(
+        f"💸 {interaction.user.mention} đã bán {amount}x {fish_name} được {price} 💶."
+    )
+    
+
 # ========================= FLASK WEB SERVICE =========================
 app = Flask("")
 
