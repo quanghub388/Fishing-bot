@@ -15,7 +15,8 @@ def home():
 # ===== Bot setup =====
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # help_command=None để dùng !help custom
+intents.members = True
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 DATA_FILE = "data.json"
 ADMIN_ID = 1199321278637678655
@@ -38,103 +39,69 @@ def init_game_data():
     if not data["fish"]:
         data["fish"] = [
             # Common 30%
-            {"name":"🐟 Cá Chép Vàng","rarity":"common","price":20,"chance":0.075},
-            {"name":"🐠 Cá Trôi Bạc","rarity":"common","price":25,"chance":0.075},
-            {"name":"🐡 Cá Vàng Xinh","rarity":"common","price":30,"chance":0.075},
-            {"name":"🐟 Cá Hồng Phớt","rarity":"common","price":20,"chance":0.075},
-            {"name":"🐠 Cá Chim Xanh","rarity":"common","price":25,"chance":0.075},
-            {"name":"🐡 Cá Lóc Nâu","rarity":"common","price":30,"chance":0.075},
-            {"name":"🐟 Cá Trôi Cam","rarity":"common","price":20,"chance":0.075},
-            {"name":"🐠 Cá Chạch Vàng","rarity":"common","price":25,"chance":0.075},
-            {"name":"🐡 Cá Vược","rarity":"common","price":30,"chance":0.075},
-            {"name":"🐟 Cá Trê","rarity":"common","price":20,"chance":0.075},
+            {"name":"🐟 Cá Chép","rarity":"common","price":20,"chance":0.075},
+            {"name":"🐠 Cá Trê","rarity":"common","price":25,"chance":0.075},
+            {"name":"🐡 Cá Rô","rarity":"common","price":30,"chance":0.075},
+            {"name":"🐟 Cá Lóc","rarity":"common","price":20,"chance":0.075},
+            {"name":"🐠 Cá Mú","rarity":"common","price":25,"chance":0.075},
+            {"name":"🐡 Cá Trắm","rarity":"common","price":30,"chance":0.075},
+            {"name":"🐟 Cá Chạch","rarity":"common","price":20,"chance":0.075},
+            {"name":"🐠 Cá Bống","rarity":"common","price":25,"chance":0.075},
+            {"name":"🐡 Cá Nheo","rarity":"common","price":30,"chance":0.075},
+            {"name":"🐟 Cá Cơm","rarity":"common","price":20,"chance":0.075},
+
             # Uncommon 26%
-            {"name":"🐠 Cá Tầm Xanh","rarity":"uncommon","price":50,"chance":0.043},
-            {"name":"🐡 Cá Rồng Nho","rarity":"uncommon","price":55,"chance":0.043},
-            {"name":"🐟 Cá Hồi Cam","rarity":"uncommon","price":60,"chance":0.043},
-            {"name":"🐠 Cá Ngừ Đại Dương","rarity":"uncommon","price":50,"chance":0.043},
-            {"name":"🐡 Cá Mú Đỏ","rarity":"uncommon","price":55,"chance":0.043},
-            {"name":"🐟 Cá Bơn Xanh","rarity":"uncommon","price":60,"chance":0.043},
-            {"name":"🐠 Cá Thu Trắng","rarity":"uncommon","price":50,"chance":0.043},
-            {"name":"🐡 Cá Chình Vàng","rarity":"uncommon","price":55,"chance":0.043},
-            {"name":"🐟 Cá Hổ Phớt","rarity":"uncommon","price":60,"chance":0.043},
-            {"name":"🐠 Cá Sấu Mini","rarity":"uncommon","price":50,"chance":0.043},
+            {"name":"🐠 Cá Hồi","rarity":"uncommon","price":50,"chance":0.043},
+            {"name":"🐡 Cá Chình","rarity":"uncommon","price":55,"chance":0.043},
+            {"name":"🐟 Cá Ngừ","rarity":"uncommon","price":60,"chance":0.043},
+            {"name":"🐠 Cá Thu","rarity":"uncommon","price":50,"chance":0.043},
+            {"name":"🐡 Cá Sấu","rarity":"uncommon","price":55,"chance":0.043},
+            {"name":"🐟 Cá Hồng","rarity":"uncommon","price":60,"chance":0.043},
+            {"name":"🐠 Cá Vược","rarity":"uncommon","price":50,"chance":0.043},
+            {"name":"🐡 Cá Chim","rarity":"uncommon","price":55,"chance":0.043},
+            {"name":"🐟 Cá Lăng","rarity":"uncommon","price":60,"chance":0.043},
+            {"name":"🐠 Cá Sặc","rarity":"uncommon","price":50,"chance":0.043},
+
             # Rare 20%
-            {"name":"🐡 Cá Ngừ Khổng Lồ","rarity":"rare","price":200,"chance":0.05},
+            {"name":"🐡 Cá Ngừ Đại Dương","rarity":"rare","price":200,"chance":0.05},
             {"name":"🐟 Cá Mú Hoàng","rarity":"rare","price":250,"chance":0.05},
-            {"name":"🐠 Cá Bơn Đại Dương","rarity":"rare","price":220,"chance":0.05},
+            {"name":"🐠 Cá Bơn","rarity":"rare","price":220,"chance":0.05},
             {"name":"🐡 Cá Thu Vàng","rarity":"rare","price":210,"chance":0.05},
             {"name":"🐟 Cá Lăng Xanh","rarity":"rare","price":230,"chance":0.05},
             {"name":"🐠 Cá Chim Vàng","rarity":"rare","price":200,"chance":0.05},
             {"name":"🐡 Cá Chạch Cam","rarity":"rare","price":250,"chance":0.05},
             {"name":"🐟 Cá Trê Đại Dương","rarity":"rare","price":220,"chance":0.05},
+
             # Epic 15%
             {"name":"🐠 Cá Chim Hoàng","rarity":"epic","price":500,"chance":0.0375},
             {"name":"🐡 Cá Lóc Hoàng Kim","rarity":"epic","price":550,"chance":0.0375},
             {"name":"🐟 Cá Hồng Đại Dương","rarity":"epic","price":600,"chance":0.0375},
             {"name":"🐠 Cá Ngừ Titan","rarity":"epic","price":500,"chance":0.0375},
             {"name":"🐡 Cá Rồng Vương","rarity":"epic","price":550,"chance":0.0375},
+
             # Legend 6%
             {"name":"🐟 Cá Chình Vương","rarity":"legend","price":2000,"chance":0.03},
             {"name":"🐠 Cá Sấu Vàng","rarity":"legend","price":2500,"chance":0.03},
             {"name":"🐡 Cá Hổ Titan","rarity":"legend","price":2200,"chance":0.03},
+
             # Mythic 2.9%
             {"name":"🐟 Cá Vua Đại Dương","rarity":"mythic","price":30000,"chance":0.0145},
             {"name":"🐠 Cá Rồng Biển","rarity":"mythic","price":50000,"chance":0.0145},
-            # Exotic 0.1%
-            {"name":"🐡 Cá Rồng Thần","rarity":"exotic","price":200000,"chance":0.001}
-        ]
-    if not data["rods"]:
-        data["rods"] = [
-            {"name":"🎣 Shimano FX","price":500,"luck":1},
-            {"name":"🎣 Daiwa Pro","price":1000,"luck":1.1},
-            {"name":"🎣 Abu Garcia","price":5000,"luck":1.2},
-            {"name":"🎣 Penn Battle","price":10000,"luck":1.3},
-            {"name":"🎣 Okuma Carbon","price":50000,"luck":1.5},
-            {"name":"🎣 St. Croix Legend","price":100000,"luck":1.7},
-            {"name":"🎣 G. Loomis NRX","price":500000,"luck":2},
-            {"name":"🎣 Fenwick Elite","price":1000000,"luck":2.2},
-            {"name":"🎣 Tsunami Elite","price":5000000,"luck":2.5},
-            {"name":"🎣 Megaforce X","price":10000000,"luck":3},
-            {"name":"🎣 Titan Power","price":50000000,"luck":3.5},
-            {"name":"🎣 King Rod","price":100000000,"luck":4},
-            {"name":"🎣 Supreme Pro","price":500000000,"luck":4.5},
-            {"name":"🎣 Ultimate Legend","price":1000000000,"luck":5}
-        ]
-    if not data["baits"]:
-        data["baits"] = [
-            {"name":"🪱 Giun Đất","price":500,"luck":1},
-            {"name":"🪱 Sâu Trắng","price":1000,"luck":1.1},
-            {"name":"🦐 Tép Sống","price":2000,"luck":1.15},
-            {"name":"🥚 Trứng Cá","price":5000,"luck":1.2},
-            {"name":"🦑 Mực Tươi","price":10000,"luck":1.3},
-            {"name":"🦐 Tôm Biển","price":50000,"luck":1.5},
-            {"name":"✨ Mồi Đặc Biệt","price":100000,"luck":1.7},
-            {"name":"💎 Mồi Hảo Hạng","price":500000,"luck":2},
-            {"name":"🪄 Mồi Siêu","price":1000000,"luck":2.2},
-            {"name":"🥇 Mồi Vàng","price":5000000,"luck":2.5},
-            {"name":"💎 Mồi Kim Cương","price":10000000,"luck":3},
-            {"name":"🛡️ Mồi Titan","price":50000000,"luck":3.5},
-            {"name":"🏆 Mồi Hoàng Kim","price":100000000,"luck":4},
-            {"name":"👑 Mồi Vua","price":500000000,"luck":4.5},
-            {"name":"🐉 Mồi Rồng","price":1000000000,"luck":5}
-        ]
-    save_data(data)
 
-# ===== Initialize =====
-init_game_data()
-
-# ===== Helper functions =====
+            # Exotic 0.1% - chỉ 3 con
+            {"name":"🐟 Catfish","rarity":"exotic","price":350000,"chance":0.0003},
+            {"name":"🦈 Megalodon","rarity":"exotic","price":500000,"chance":0.0003},
+            {"name":"🐉 Dragon","rarity":"exotic","price":750000,"chance":0.0004},
+        ]
+        # ===== Helper Functions =====
 def get_player(user_id):
     data = load_data()
     if str(user_id) not in data["players"]:
         data["players"][str(user_id)] = {
             "coin":1000,
             "level":1,
-            "exp":0,
             "fish_caught":{},
-            "inventory":{"rods":{},"baits":{}},
-            "daily_transfer":0
+            "inventory":{"rods":{},"baits":{}}
         }
         save_data(data)
     return data["players"][str(user_id)]
@@ -145,18 +112,17 @@ def save_player(user_id, player):
     save_data(data)
 
 def get_fish_by_name(name):
-    data = load_data()
-    for f in data["fish"]:
+    for f in load_data()["fish"]:
         if f["name"].lower() == name.lower():
             return f
     return None
 
-def get_item_by_name(category,name):
-    data = load_data()
-    for i in data[category]:
-        if i["name"].lower() == name.lower():
-            return i
+def get_item_by_name(category, name):
+    for item in load_data()[category]:
+        if item["name"].lower() == name.lower():
+            return item
     return None
+
 # ===== Bot Events =====
 @bot.event
 async def on_ready():
@@ -167,19 +133,19 @@ async def on_ready():
     except Exception as e:
         print(e)
 
-# ===== !help / /help =====
+# ===== !help =====
 @bot.command()
 async def help(ctx):
     embed = discord.Embed(title="🎣 Fishing Bot Commands", color=0x1abc9c)
-    embed.add_field(name="!cauca", value="Câu cá (mỗi lần 1-5 con)", inline=False)
+    embed.add_field(name="!cauca", value="Câu cá (1-5 con/lượt)", inline=False)
     embed.add_field(name="!banca <tên cá> <số lượng>", value="Bán cá", inline=False)
     embed.add_field(name="!banca all", value="Bán tất cả cá", inline=False)
     embed.add_field(name="!cuahang", value="Xem cửa hàng", inline=False)
     embed.add_field(name="!mua <tên vật phẩm> <số lượng>", value="Mua vật phẩm", inline=False)
     embed.add_field(name="!khodo", value="Xem kho đồ", inline=False)
     embed.add_field(name="!profile", value="Xem thông tin cá nhân", inline=False)
-    embed.add_field(name="!chuyentien <@user> <số tiền>", value="Chuyển tiền (giới hạn 1,000,000 Coincat/ngày)", inline=False)
-    embed.add_field(name="!admintang <@user> <số tiền>", value="Admin tăng tiền không giới hạn", inline=False)
+    embed.add_field(name="!chuyentien <@user> <số tiền>", value="Chuyển tiền (max 1,000,000 Coincat/ngày)", inline=False)
+    embed.add_field(name="!admintang <@user> <số tiền>", value="Admin tăng tiền (chỉ admin)", inline=False)
     await ctx.send(embed=embed)
 
 # ===== !cuahang =====
@@ -187,8 +153,8 @@ async def help(ctx):
 async def cuahang(ctx):
     data = load_data()
     embed = discord.Embed(title="🏪 Cửa Hàng", color=0x3498db)
-    rods = "\n".join([f"{r['name']} - {r['price']} Coincat - Luck: {r['luck']}" for r in data["rods"]])
-    baits = "\n".join([f"{b['name']} - {b['price']} Coincat - Luck: {b['luck']}" for b in data["baits"]])
+    rods = "\n".join([f"{r['name']} - {r['price']} Coincat - Luck: {r.get('luck',1)}" for r in data["rods"]]) or "Không có"
+    baits = "\n".join([f"{b['name']} - {b['price']} Coincat - Luck: {b.get('luck',1)}" for b in data["baits"]]) or "Không có"
     embed.add_field(name="🎣 Cần câu", value=rods, inline=False)
     embed.add_field(name="🪱 Mồi câu", value=baits, inline=False)
     await ctx.send(embed=embed)
@@ -207,10 +173,7 @@ async def mua(ctx, name:str, amount:int=1):
         return
     player["coin"] -= total_price
     category = "rods" if item in load_data()["rods"] else "baits"
-    if item["name"] in player["inventory"][category]:
-        player["inventory"][category][item["name"]] += amount
-    else:
-        player["inventory"][category][item["name"]] = amount
+    player["inventory"][category][item["name"]] = player["inventory"][category].get(item["name"],0)+amount
     save_player(ctx.author.id, player)
     await ctx.send(f"✅ Bạn đã mua {amount} x {item['name']}")
 
@@ -258,8 +221,7 @@ async def cauca(ctx):
     for k,v in caught.items():
         embed.add_field(name=k, value=f"x{v}", inline=True)
     await ctx.send(embed=embed)
-
-# ===== !banca =====
+            # ===== !banca =====
 @bot.command()
 async def banca(ctx, name:str=None, amount:int=None):
     player = get_player(ctx.author.id)
@@ -308,12 +270,15 @@ async def admintang(ctx, member:discord.Member, amount:int):
     save_player(member.id, player)
     await ctx.send(f"✅ Admin đã tăng {amount} Coincat cho {member.display_name}")
 
-# ===== Keep bot online on Render =====
+# ===== Keep bot online trên Render =====
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
 
 threading.Thread(target=run_flask).start()
 
+# ===== Initialize game data =====
+init_game_data()
+
 # ===== Run bot =====
-bot.run("YOUR_BOT_TOKEN_HERE")
-    
+bot.run("GEIqJfhvgFRLaKyZrfw2OzAKVUgX6BYwkJDsk")
+                     
