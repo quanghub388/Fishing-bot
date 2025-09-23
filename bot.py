@@ -280,5 +280,5 @@ threading.Thread(target=run_flask).start()
 init_game_data()
 
 # ===== Run bot =====
-bot.run("MTQxOTI2MTY5NDM5OTYxNTA0Nw.GRVnuW.-GEIqJfhvgFRLaKyZrfw2OzAKVUgX6BYwkJDsk")
+bot.run("YOUR_BOT_TOKEN_HERE")
                      
