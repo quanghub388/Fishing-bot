@@ -15,7 +15,7 @@ def home():
 # ===== Bot setup =====
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)  # help_command=None để dùng !help custom
 
 DATA_FILE = "data.json"
 ADMIN_ID = 1199321278637678655
@@ -121,7 +121,10 @@ def init_game_data():
         ]
     save_data(data)
 
-# ===== Helper Functions =====
+# ===== Initialize =====
+init_game_data()
+
+# ===== Helper functions =====
 def get_player(user_id):
     data = load_data()
     if str(user_id) not in data["players"]:
@@ -154,7 +157,7 @@ def get_item_by_name(category,name):
         if i["name"].lower() == name.lower():
             return i
     return None
-# ===== Bot Commands =====
+# ===== Bot Events =====
 @bot.event
 async def on_ready():
     print(f"{bot.user} is online!")
@@ -179,7 +182,7 @@ async def help(ctx):
     embed.add_field(name="!admintang <@user> <số tiền>", value="Admin tăng tiền không giới hạn", inline=False)
     await ctx.send(embed=embed)
 
-# ===== !cuahang / !mua =====
+# ===== !cuahang =====
 @bot.command()
 async def cuahang(ctx):
     data = load_data()
@@ -190,6 +193,7 @@ async def cuahang(ctx):
     embed.add_field(name="🪱 Mồi câu", value=baits, inline=False)
     await ctx.send(embed=embed)
 
+# ===== !mua =====
 @bot.command()
 async def mua(ctx, name:str, amount:int=1):
     player = get_player(ctx.author.id)
